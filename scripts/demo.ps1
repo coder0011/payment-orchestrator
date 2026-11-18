@@ -1,6 +1,6 @@
-# Techdome Payments Orchestrator - Interactive One-Click Demo
+# Payments Orchestrator - Interactive One-Click Demo
 Write-Host "================================================================" -ForegroundColor Cyan
-Write-Host "  TECHDOME PAYMENT ORCHESTRATOR - INTERACTIVE DEMO (HYPERSWITCH) " -ForegroundColor Cyan
+Write-Host "  PAYMENTS ORCHESTRATOR - INTERACTIVE DEMO (HYPERSWITCH) " -ForegroundColor Cyan
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -34,7 +34,7 @@ $paymentPayload = @{
         holderName = "Jane Doe"
     }
     billingCountry = "US"
-    merchantId = "merch_techdome_01"
+    merchantId = "merch_default_01"
 } | ConvertTo-Json
 
 $idemKey = "demo-key-" + [guid]::NewGuid().ToString()

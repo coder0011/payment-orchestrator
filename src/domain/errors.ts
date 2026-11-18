@@ -9,7 +9,7 @@ export abstract class DomainError extends Error {
 
   toJSON(): Record<string, unknown> {
     return {
-      type: `https://api.techdome.io/errors/${this.code.toLowerCase()}`,
+      type: `https://api.payments.io/errors/${this.code.toLowerCase()}`,
       title: this.name,
       status: this.statusCode,
       detail: this.message,

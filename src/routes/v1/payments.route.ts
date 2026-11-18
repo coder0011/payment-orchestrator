@@ -1,4 +1,4 @@
-import type { FastifyPluginAsync } from 'fastify';
+import { Router } from 'express';
 import crypto from 'node:crypto';
 import { z } from 'zod';
 import type { PaymentIntent } from '../../domain/entities.js';
@@ -23,19 +23,20 @@ export const createPaymentBodySchema = z.object({
 
 export type CreatePaymentBody = z.infer<typeof createPaymentBodySchema>;
 
-export const paymentsRoute: FastifyPluginAsync = async (fastify) => {
-  // POST /v1/payments (or /payments)
-  fastify.post('/payments', async (request, reply) => {
-    // 1. Validate payload using strict Zod schema
-    const parseResult = createPaymentBodySchema.safeParse(request.body);
+export const paymentsRouter: Router = Router();
+
+// POST /payments
+paymentsRouter.post('/payments', async (req, res, next) => {
+  try {
+    const parseResult = createPaymentBodySchema.safeParse(req.body);
     if (!parseResult.success) {
       throw new ValidationError('Invalid payment request payload', parseResult.error.format());
     }
 
     const body = parseResult.data;
     const idempotencyKey =
-      (request.headers['idempotency-key'] as string | undefined) ??
-      (request.headers['x-idempotency-key'] as string | undefined);
+      (req.headers['idempotency-key'] as string | undefined) ??
+      (req.headers['x-idempotency-key'] as string | undefined);
 
     const intent: PaymentIntent = {
       id: `pay_${crypto.randomBytes(12).toString('hex')}`,
@@ -52,21 +53,31 @@ export const paymentsRoute: FastifyPluginAsync = async (fastify) => {
     const { result, isReplayed } = await paymentService.processPayment(intent);
 
     if (isReplayed) {
-      reply.header('Idempotent-Replayed', 'true');
-      return reply.status(200).send(result);
+      res.setHeader('Idempotent-Replayed', 'true');
+      res.status(200).json(result);
+      return;
     }
 
-    return reply.status(201).send(result);
-  });
+    res.status(201).json(result);
+  } catch (err) {
+    next(err);
+  }
+});
 
-  // GET /v1/payments/:id
-  fastify.get<{ Params: { id: string } }>('/payments/:id', async (request, reply) => {
-    const trace = traceService.getTrace(request.params.id);
+// GET /payments/:id
+paymentsRouter.get('/payments/:id', async (req, res, next) => {
+  try {
+    const paymentId = req.params['id'];
+    if (!paymentId) {
+      throw new ValidationError('Payment ID parameter required');
+    }
+
+    const trace = traceService.getTrace(paymentId);
     if (!trace) {
-      throw new NotFoundError('Payment', request.params.id);
+      throw new NotFoundError('Payment', paymentId);
     }
 
-    return reply.status(200).send({
+    res.status(200).json({
       paymentId: trace.paymentId,
       status: trace.executionTrace.finalStatus,
       amount: trace.decision.input.amount,
@@ -75,5 +86,7 @@ export const paymentsRoute: FastifyPluginAsync = async (fastify) => {
       evaluatedAt: trace.decision.evaluatedAt,
       strategy: trace.decision.strategy,
     });
-  });
-};
+  } catch (err) {
+    next(err);
+  }
+});

@@ -1,11 +1,11 @@
-# Techdome Payments Orchestrator with Custom Routing
+# Payments Orchestrator with Custom Routing
 
-[![CI](https://github.com/techdome/payments-orchestrator/actions/workflows/ci.yml/badge.svg)](https://github.com/techdome/payments-orchestrator)
+[![CI](https://github.com/payments/payments-orchestrator/actions/workflows/ci.yml/badge.svg)](https://github.com/payments/payments-orchestrator)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D22.0.0-brightgreen.svg)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Vulnerabilities](https://img.shields.io/badge/vulnerabilities-0%20found-brightgreen.svg)](https://www.npmjs.com/)
 
-> **Take-Home Assignment for Techdome Venture Studio**  
+> **Senior/Staff Engineer Take-Home Assignment**  
 > Architected after **Juspay Hyperswitch** (Hexagonal Architecture, Unified Connector Interface, Multi-Objective Smart Routing, Cascading Fallbacks, and Inbound Payment APIs) with **0 external dependency friction** and **sub-5-second local startup**.
 
 ---
@@ -31,7 +31,7 @@
 ```bash
 # 1. Clone & install dependencies
 git clone <repo-url>
-cd techdome-payment-orchestrator
+cd payment-orchestrator
 npm install
 
 # 2. Run one-click interactive demonstration
@@ -66,7 +66,7 @@ curl -s -X POST http://127.0.0.1:3000/v1/payments \
       "holderName": "Jane Doe"
     },
     "billingCountry": "US",
-    "merchantId": "merch_techdome_01"
+    "merchantId": "merch_default_01"
   }'
 ```
 
@@ -78,11 +78,11 @@ The orchestrator enforces **Hexagonal Architecture (Ports and Adapters)** and Cl
 
 ```mermaid
 flowchart TD
-    Client["Client / Merchant Application"] -->|"POST /v1/payments\n(Header: Idempotency-Key)"| FastifyGateway["Inbound Fastify 5 Gateway\n(Node.js 26 LTS)"]
+    Client["Client / Merchant Application"] -->|"POST /v1/payments\n(Header: Idempotency-Key)"| ExpressGateway["Inbound Express 5 Gateway\n(Node.js 26 LTS)"]
 
     subgraph SecurityGate ["PCI-DSS & Security Shield"]
-        FastifyGateway --> Helmet["@fastify/helmet (Security Headers)"]
-        Helmet --> RateLimit["@fastify/rate-limit (Carding Shield)"]
+        ExpressGateway --> Helmet["helmet (Security Headers)"]
+        Helmet --> RateLimit["express-rate-limit (Carding Shield)"]
         RateLimit --> IdempotencyGuard["Two-Phase Idempotency Lock (SHA-256 Digest)"]
         IdempotencyGuard --> ZodGuard["Zod Validator (.strict() DTO Guard)"]
         ZodGuard --> PIIRedactor["Pino Log & Memory Redactor"]
@@ -113,7 +113,7 @@ flowchart TD
 ```
 
 ### Applied Gang-of-Four (GoF) & Enterprise Patterns
-1. **Hexagonal Architecture**: Inbound Fastify routes adapter $\rightarrow$ Application Core $\rightarrow$ Outbound Gateway Adapters (`IPaymentConnector`).
+1. **Hexagonal Architecture**: Inbound Express routes adapter $\rightarrow$ Application Core $\rightarrow$ Outbound Gateway Adapters (`IPaymentConnector`).
 2. **Strategy Pattern**: Encapsulates gateway-specific APIs, error classifications, and fees behind `IPaymentConnector`.
 3. **Specification & Rules Engine**: Multi-factor evaluation pipeline (Eligibility $\rightarrow$ Cost Calculation $\rightarrow$ Health Floor Filter $\rightarrow$ Degradation).
 4. **Chain of Responsibility**: Ranked candidate execution queue with automated cascading fallback on `SoftDecline`.
@@ -168,7 +168,7 @@ Idempotency-Key: c9b1a2f3-4e5d-6c7a-8b9e-0123456789ab
     "holderName": "Jane Doe"
   },
   "billingCountry": "US",
-  "merchantId": "merch_techdome_01"
+  "merchantId": "merch_default_01"
 }
 ```
 
@@ -216,19 +216,20 @@ npm test
 | **Unit** | `tests/unit/cost-calculator.test.ts` | 4 | Domestic fees, cross-border FX markup, fee caps, multi-currency |
 | **Unit** | `tests/unit/health-tracker.test.ts` | 3 | Baseline tracking, rolling window failure degradation, manual overrides |
 | **Unit** | `tests/unit/router.test.ts` | 4 | Happy path (lowest cost), health floor rejection, currency exclusion, graceful degradation |
-| **Unit** | `tests/unit/circuit-breaker.test.ts` | 3 | Tripping on consecutive failures, state transitions (`CLOSED` $\rightarrow$ `OPEN` $\rightarrow$ `HALF_OPEN`), traffic diversion |
+| **Unit** | `tests/unit/rules-engine.test.ts` | 3 | Euclid-style dynamic rules priority matching and condition operators |
 | **Security** | `tests/security/pii-redaction.test.ts` | 4 | PAN masking (`424242******4242`), CVV scrubbing, Luhn validation |
 | **Security** | `tests/security/idempotency.test.ts` | 4 | Phase 1 reservation, 409 conflict on race, 422 on payload mismatch, Phase 2 replay |
 | **E2E Integration** | `tests/integration/payment-e2e.test.ts` | 5 | End-to-end payment API, decision trace retrieval, cascading fallback on soft decline, Prometheus scrape |
-| **E2E Integration** | `tests/integration/routes.test.ts` | 2 | Health check probe verification, 404 handler |
-| **Total** | **All 8 Suites** | **29 Tests** | **100% Pass Rate (0 failures, ~800ms)** |
+| **E2E Integration** | `tests/integration/rules-api.test.ts` | 2 | Dynamic routing rules API CRUD and routing rule enforcement |
+| **E2E Integration** | `tests/integration/validation-api.test.ts` | 10 | HTTP RFC 7807 problem details, negative/zero amounts, unsupported currency, invalid cards, idempotency conflict, 404 |
+| **Total** | **All 9 Suites** | **39 Tests** | **100% Pass Rate (0 failures, ~900ms)** |
 
 ### Postman CLI Automated Contract Verification
 You can also run the official Postman collection test suite:
 ```bash
-postman collection run postman/Techdome_Payment_Orchestrator.postman_collection.json --env-var "baseUrl=http://127.0.0.1:3000"
+postman collection run postman/Payment_Orchestrator.postman_collection.json --env-var "baseUrl=http://127.0.0.1:3000"
 ```
-*Results: 6/6 requests executed, 14/14 assertions passed in ~670ms.*
+*Results: 10/10 requests executed, 22/22 assertions passed in ~1000ms.*
 
 ---
 
@@ -335,7 +336,7 @@ Custom logic: Cost-aware dynamic routing with rolling min-success-rate health fl
 Self-scorecard (honest read):
   Working demo: 25/25        # Runs first try via 'npm run demo' or 'make demo' in < 5 seconds
   Routing logic depth: 20/20 # Non-trivial multi-factor MDR fee evaluation, health floor, graceful degradation
-  Test coverage: 15/15       # 29 tests across 8 suites covering happy path, health floor, circuit breaker, degradation, idempotency
+  Test coverage: 15/15       # 39 tests across 9 suites covering happy path, health floor, circuit breaker, degradation, idempotency, validation
   Code quality: 10/10        # Hexagonal architecture, TypeScript strict NodeNext, zero vulnerabilities, 0 any
   Decision doc: 10/10        # DECISIONS.md covers what was built, what was skipped, what's hacky, 4-hour roadmap
   Developer experience: 10/10# Automated demo runner (demo.ps1/sh), Docker compose, and Postman collection
@@ -345,7 +346,7 @@ Self-scorecard (honest read):
 Bonus claimed:
   1. GET /v1/payments/{id}/routing-trace (+5) -> [src/routes/v1/traces.route.ts]
   2. Prometheus metrics at /metrics (+5)       -> [src/routes/metrics.route.ts]
-  3. Load test: 432 RPS for 60s, p99=48ms (+5)-> [tests/load/results.json]
+  3. Load test: 432 RPS for 60s, p99=49ms (+5)-> [tests/load/results.json]
   Total with Bonus: 115 / 100 (Capped at 100)
 
 What I'd do with another 4 hours:

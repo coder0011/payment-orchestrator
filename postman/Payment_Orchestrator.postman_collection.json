@@ -1,8 +1,8 @@
 {
   "info": {
-    "name": "Techdome Payment Orchestrator API",
+    "name": "Payment Orchestrator API",
     "_postman_id": "c1f7a8b9-4d2e-4f1a-9a8b-123456789abc",
-    "description": "# Techdome Payment Orchestrator API Documentation\n\nAn enterprise-grade **Payments Orchestrator with Intelligent Multi-Objective Routing**, modeled after the architectural principles of **Juspay Hyperswitch**.\n\n---\n\n## Core Capabilities\n1. **Cost-Aware Routing with Health Floor**: Evaluates the `(BIN, currency, amount, country)` tuple against real-time processor pricing (fixed fees, variable MDR rates, cross-border FX markups) and enforces a rolling 5-minute First Attempt Authorization Rate (FAAR) health floor (default: $\\ge 85\\%$).\n2. **Chain-of-Responsibility Cascading**: Automatically cascades to secondary processors on soft declines (network timeouts, processor 5xx) while halting immediately on hard declines (fraud, stolen card, invalid CVV) to protect against card-testing abuse.\n3. **Graceful Degradation**: In the event of a market-wide processor outage dropping all gateways below the health floor, the switch degrades gracefully to **Maximum Availability Strategy** (routing to the highest success rate gateway instead of failing transactions).\n4. **Dynamic Rule-Based Overrides (Euclid DSL)**: Supports priority-ordered merchant business rules evaluated ahead of pure cost optimization.\n5. **PCI-DSS Level 1 Data Protection**: Card PANs are masked immediately upon ingestion (`424242******4242`) and CVVs are stripped from memory buffers and excluded from logs/storage.\n6. **Two-Phase Cryptographic Idempotency**: `Idempotency-Key` header with `SHA-256(payload + method + path)` fingerprinting prevents duplicate charges and race conditions.\n7. **Full Audit Traces & Prometheus Telemetry**: Every routing decision is persisted as an immutable trace (`GET /v1/payments/:id/routing-trace`) and exported via Prometheus (`GET /metrics`).\n\n---\n\n## Environment Variables\n| Variable | Default Value | Description |\n| :--- | :--- | :--- |\n| `baseUrl` | `http://127.0.0.1:3000` | Target host of the payment orchestrator instance |\n| `lastPaymentId` | `pay_sample` | Dynamically updated by collection test scripts for trace lookup |\n\n---\n\n## Error Handling (RFC 7807)\nAll API errors return standardized RFC 7807 Problem Details objects:\n- `400 Bad Request`: Payload validation error (Zod)\n- `402 Payment Required`: Upstream processor decline\n- `409 Conflict`: Concurrent mutation with identical `Idempotency-Key` in progress\n- `422 Unprocessable Entity`: `Idempotency-Key` reused with mismatched request payload\n- `404 Not Found`: Resource does not exist\n- `503 Service Unavailable`: No eligible healthy gateway available",
+    "description": "# Payment Orchestrator API Documentation\n\nAn enterprise-grade **Payments Orchestrator with Intelligent Multi-Objective Routing**, modeled after the architectural principles of **Juspay Hyperswitch**.\n\n---\n\n## Core Capabilities\n1. **Cost-Aware Routing with Health Floor**: Evaluates the `(BIN, currency, amount, country)` tuple against real-time processor pricing (fixed fees, variable MDR rates, cross-border FX markups) and enforces a rolling 5-minute First Attempt Authorization Rate (FAAR) health floor (default: $\\ge 85\\%$).\n2. **Chain-of-Responsibility Cascading**: Automatically cascades to secondary processors on soft declines (network timeouts, processor 5xx) while halting immediately on hard declines (fraud, stolen card, invalid CVV) to protect against card-testing abuse.\n3. **Graceful Degradation**: In the event of a market-wide processor outage dropping all gateways below the health floor, the switch degrades gracefully to **Maximum Availability Strategy** (routing to the highest success rate gateway instead of failing transactions).\n4. **Dynamic Rule-Based Overrides (Euclid DSL)**: Supports priority-ordered merchant business rules evaluated ahead of pure cost optimization.\n5. **PCI-DSS Level 1 Data Protection**: Card PANs are masked immediately upon ingestion (`424242******4242`) and CVVs are stripped from memory buffers and excluded from logs/storage.\n6. **Two-Phase Cryptographic Idempotency**: `Idempotency-Key` header with `SHA-256(payload + method + path)` fingerprinting prevents duplicate charges and race conditions.\n7. **Full Audit Traces & Prometheus Telemetry**: Every routing decision is persisted as an immutable trace (`GET /v1/payments/:id/routing-trace`) and exported via Prometheus (`GET /metrics`).\n\n---\n\n## Environment Variables\n| Variable | Default Value | Description |\n| :--- | :--- | :--- |\n| `baseUrl` | `http://127.0.0.1:3000` | Target host of the payment orchestrator instance |\n| `lastPaymentId` | `pay_sample` | Dynamically updated by collection test scripts for trace lookup |\n\n---\n\n## Error Handling (RFC 7807)\nAll API errors return standardized RFC 7807 Problem Details objects:\n- `400 Bad Request`: Payload validation error (Zod)\n- `402 Payment Required`: Upstream processor decline\n- `409 Conflict`: Concurrent mutation with identical `Idempotency-Key` in progress\n- `422 Unprocessable Entity`: `Idempotency-Key` reused with mismatched request payload\n- `404 Not Found`: Resource does not exist\n- `503 Service Unavailable`: No eligible healthy gateway available",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -31,7 +31,7 @@
               "pm.test('Service status is healthy', function () {",
               "    var jsonData = pm.response.json();",
               "    pm.expect(jsonData.status).to.eql('healthy');",
-              "    pm.expect(jsonData.service).to.eql('techdome-payment-orchestrator');",
+              "    pm.expect(jsonData.service).to.eql('payment-orchestrator');",
               "});"
             ],
             "type": "text/javascript"
@@ -59,7 +59,7 @@
           "code": 200,
           "_postman_previewlanguage": "json",
           "header": [{ "key": "Content-Type", "value": "application/json" }],
-          "body": "{\n  \"status\": \"healthy\",\n  \"timestamp\": \"2026-11-18T17:55:15.828Z\",\n  \"service\": \"techdome-payment-orchestrator\",\n  \"version\": \"1.0.0\"\n}"
+          "body": "{\n  \"status\": \"healthy\",\n  \"timestamp\": \"2026-11-18T17:55:15.828Z\",\n  \"service\": \"payment-orchestrator\",\n  \"version\": \"1.0.0\"\n}"
         }
       ]
     },
@@ -104,7 +104,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"amount\": 100,\n  \"currency\": \"USD\",\n  \"paymentMethod\": \"card\",\n  \"card\": {\n    \"number\": \"4242424242424242\",\n    \"expMonth\": 12,\n    \"expYear\": 2028,\n    \"cvv\": \"123\",\n    \"holderName\": \"Jane Doe\"\n  },\n  \"billingCountry\": \"US\",\n  \"merchantId\": \"merch_techdome_01\"\n}"
+          "raw": "{\n  \"amount\": 100,\n  \"currency\": \"USD\",\n  \"paymentMethod\": \"card\",\n  \"card\": {\n    \"number\": \"4242424242424242\",\n    \"expMonth\": 12,\n    \"expYear\": 2028,\n    \"cvv\": \"123\",\n    \"holderName\": \"Jane Doe\"\n  },\n  \"billingCountry\": \"US\",\n  \"merchantId\": \"merch_default_01\"\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/v1/payments",
@@ -166,7 +166,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"amount\": 100,\n  \"currency\": \"USD\",\n  \"paymentMethod\": \"card\",\n  \"card\": {\n    \"number\": \"4242424242424242\",\n    \"expMonth\": 12,\n    \"expYear\": 2028,\n    \"cvv\": \"123\",\n    \"holderName\": \"Jane Doe\"\n  },\n  \"billingCountry\": \"US\",\n  \"merchantId\": \"merch_techdome_01\"\n}"
+          "raw": "{\n  \"amount\": 100,\n  \"currency\": \"USD\",\n  \"paymentMethod\": \"card\",\n  \"card\": {\n    \"number\": \"4242424242424242\",\n    \"expMonth\": 12,\n    \"expYear\": 2028,\n    \"cvv\": \"123\",\n    \"holderName\": \"Jane Doe\"\n  },\n  \"billingCountry\": \"US\",\n  \"merchantId\": \"merch_default_01\"\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/v1/payments",
@@ -335,6 +335,203 @@
           "_postman_previewlanguage": "text",
           "header": [{ "key": "Content-Type", "value": "text/plain; version=0.0.4; charset=utf-8" }],
           "body": "# HELP payment_requests_total Total count of inbound payment requests handled by the switch\n# TYPE payment_requests_total counter\npayment_requests_total{status=\"succeeded\",currency=\"USD\",connector=\"adyen\"} 1\npayment_requests_total{status=\"succeeded\",currency=\"INR\",connector=\"razorpay\"} 1\n\n# HELP payment_routing_decisions_total Total routing decisions made categorized by selected connector and decision strategy\n# TYPE payment_routing_decisions_total counter\npayment_routing_decisions_total{selected_connector=\"adyen\",strategy=\"least_cost\"} 1\npayment_routing_decisions_total{selected_connector=\"razorpay\",strategy=\"least_cost\"} 1\n\n# HELP payment_processing_duration_seconds Duration of end-to-end payment processing in seconds\n# TYPE payment_processing_duration_seconds histogram\npayment_processing_duration_seconds_bucket{le=\"0.01\",connector=\"adyen\",status=\"succeeded\"} 0\npayment_processing_duration_seconds_bucket{le=\"0.05\",connector=\"adyen\",status=\"succeeded\"} 1\npayment_processing_duration_seconds_sum{connector=\"adyen\",status=\"succeeded\"} 0.046\npayment_processing_duration_seconds_count{connector=\"adyen\",status=\"succeeded\"} 1"
+        }
+      ]
+    },
+    {
+      "name": "7. Validation - Negative Amount Rejection (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test('Returns RFC 7807 Problem Details object', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.status).to.eql(400);",
+              "    pm.expect(jsonData.code).to.eql('VALIDATION_FAILED');",
+              "    pm.expect(jsonData.title).to.eql('ValidationError');",
+              "    pm.expect(jsonData).to.have.property('errors');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"amount\": -50,\n  \"currency\": \"USD\",\n  \"paymentMethod\": \"card\",\n  \"card\": {\n    \"number\": \"4242424242424242\",\n    \"expMonth\": 12,\n    \"expYear\": 2028,\n    \"cvv\": \"123\",\n    \"holderName\": \"Jane Doe\"\n  },\n  \"billingCountry\": \"US\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/v1/payments",
+          "host": ["{{baseUrl}}"],
+          "path": ["v1", "payments"]
+        },
+        "description": "### Validation Test\nVerifies that submitting a negative payment amount is rejected with RFC 7807 `400 Bad Request`."
+      },
+      "response": [
+        {
+          "name": "400 Bad Request - Validation Error",
+          "originalRequest": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/v1/payments" }
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "_postman_previewlanguage": "json",
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\n  \"type\": \"https://api.payments.io/errors/validation_failed\",\n  \"title\": \"ValidationError\",\n  \"status\": 400,\n  \"detail\": \"Invalid payment request payload\",\n  \"code\": \"VALIDATION_FAILED\",\n  \"errors\": {\n    \"amount\": {\n      \"_errors\": [\"Amount must be positive\"]\n    }\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "8. Validation - Unsupported Currency Rejection (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test('Validation error flags unsupported currency', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.code).to.eql('VALIDATION_FAILED');",
+              "    pm.expect(jsonData.errors).to.have.property('currency');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"amount\": 100,\n  \"currency\": \"JPY\",\n  \"paymentMethod\": \"card\",\n  \"card\": {\n    \"number\": \"4242424242424242\",\n    \"expMonth\": 12,\n    \"expYear\": 2028,\n    \"cvv\": \"123\",\n    \"holderName\": \"Jane Doe\"\n  },\n  \"billingCountry\": \"US\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/v1/payments",
+          "host": ["{{baseUrl}}"],
+          "path": ["v1", "payments"]
+        },
+        "description": "### Validation Test\nVerifies that submitting an unsupported currency (`JPY`) is rejected with RFC 7807 `400 Bad Request`."
+      },
+      "response": []
+    },
+    {
+      "name": "9. Validation - Invalid Expiry & Card Format (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test('Validation error flags invalid card attributes', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.code).to.eql('VALIDATION_FAILED');",
+              "    pm.expect(jsonData.errors).to.have.property('card');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"amount\": 100,\n  \"currency\": \"USD\",\n  \"paymentMethod\": \"card\",\n  \"card\": {\n    \"number\": \"4242424242424242\",\n    \"expMonth\": 13,\n    \"expYear\": 2020,\n    \"cvv\": \"12\",\n    \"holderName\": \"Jane Doe\"\n  },\n  \"billingCountry\": \"US\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/v1/payments",
+          "host": ["{{baseUrl}}"],
+          "path": ["v1", "payments"]
+        },
+        "description": "### Validation Test\nVerifies that submitting an expired year (`2020`), out-of-range month (`13`), or invalid CVV length is rejected with `400 Bad Request`."
+      },
+      "response": []
+    },
+    {
+      "name": "10. Validation - Idempotency Payload Hash Conflict (422 Unprocessable Entity)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 422 Unprocessable Entity', function () {",
+              "    pm.response.to.have.status(422);",
+              "});",
+              "pm.test('Returns IDEMPOTENCY_PAYLOAD_MISMATCH error code', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.code).to.eql('IDEMPOTENCY_PAYLOAD_MISMATCH');",
+              "    pm.expect(jsonData.status).to.eql(422);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "fixed-idempotency-key-01",
+            "description": "Reusing key from Request #2, but altering the amount from $100 to $999"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"amount\": 999,\n  \"currency\": \"USD\",\n  \"paymentMethod\": \"card\",\n  \"card\": {\n    \"number\": \"4242424242424242\",\n    \"expMonth\": 12,\n    \"expYear\": 2028,\n    \"cvv\": \"123\",\n    \"holderName\": \"Jane Doe\"\n  },\n  \"billingCountry\": \"US\",\n  \"merchantId\": \"merch_default_01\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/v1/payments",
+          "host": ["{{baseUrl}}"],
+          "path": ["v1", "payments"]
+        },
+        "description": "### Validation Test\nVerifies that reusing an existing completed `Idempotency-Key` with a different payload parameter ($999 instead of $100) is rejected with RFC 7807 `422 Unprocessable Entity`."
+      },
+      "response": [
+        {
+          "name": "422 Unprocessable Entity - Idempotency Mismatch",
+          "originalRequest": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/v1/payments" }
+          },
+          "status": "Unprocessable Entity",
+          "code": 422,
+          "_postman_previewlanguage": "json",
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\n  \"type\": \"https://api.payments.io/errors/idempotency_payload_mismatch\",\n  \"title\": \"IdempotencyPayloadMismatchError\",\n  \"status\": 422,\n  \"detail\": \"Idempotency-Key 'fixed-idempotency-key-01' was previously used with a different request payload\",\n  \"code\": \"IDEMPOTENCY_PAYLOAD_MISMATCH\"\n}"
         }
       ]
     }

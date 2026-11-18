@@ -2,7 +2,7 @@
 
 ## 1. What We Built
 We engineered an enterprise-grade payment orchestrator implementing **Cost-Aware Routing with a Dynamic Min-Success-Rate Floor & Cascading Fallbacks**, modeled after **Juspay Hyperswitch's architecture**:
-- **Hexagonal Architecture (Ports and Adapters)**: Fastify HTTP gateway strictly separated from core domain orchestration, with polymorphic adapters for **Stripe**, **Adyen**, and **Razorpay**.
+- **Hexagonal Architecture (Ports and Adapters)**: Express 5 HTTP gateway strictly separated from core domain orchestration, with polymorphic adapters for **Stripe**, **Adyen**, and **Razorpay**.
 - **Multi-Objective Routing Engine**: Evaluates `(BIN, currency, amount)` tuples across candidate connectors calculating net processing fees ($Fee = Fixed + \% + FX$), applies a rolling health floor ($\ge 85\%$), and ranks candidates by lowest cost.
 - **Graceful Degradation & Cascading**: Automatically cascades to secondary connectors upon soft declines/timeouts; gracefully degrades to maximum availability mode if all gateways fall below the health floor.
 - **Production Guardrails**:
@@ -23,11 +23,11 @@ We engineered an enterprise-grade payment orchestrator implementing **Cost-Aware
 - **Rationale**: External runners (like Vitest/Jest) pulled transitive dependencies (e.g., `vite` $\rightarrow$ `tinyglobby` $\rightarrow$ `picomatch`) flagged with ReDoS advisory `GHSA-fc5q-39xc-vjpf`. Adopting `node:test`:
   1. Reduced total project dependencies by 35 packages.
   2. Guaranteed **0 vulnerabilities (`npm audit` clean)**.
-  3. Achieved sub-second execution across all 29 automated tests (803ms total duration).
+  3. Achieved sub-second execution across all 39 automated tests (909ms total duration across 9 test suites).
 
-### 2.3 Fastify 5 + Zod 4 over Express
-- **Decision**: Built on **Fastify 5.12.8** with **Zod 4.6.7** and `@fastify/type-provider-zod 7.0.0`.
-- **Rationale**: Fastify provides compiled JSON schema serialization via `fast-json-stringify` delivering ~35,000 req/sec (4x faster than Express) and sub-50ms p99 latency during 60-second sustained load tests (432 RPS). Zod 4 provides strict DTO unknown property stripping (`.strict()`) to eliminate prototype pollution and parameter injection risks.
+### 2.3 Express 5 + Zod 4 for Clean Transport & Ubiquitous Integration
+- **Decision**: Built on **Express 5.3.0** with **Zod 4.6.7**, `helmet 8.3.0`, `express-rate-limit 8.7.4`, and `cors 2.8.6`.
+- **Rationale**: Express 5 is the modern evolution of the world's most ubiquitous Node.js framework, bringing native promise rejection routing (eliminating async handler wrapper boilerplate) while preserving universal ecosystem familiarity. Thanks to strict adherence to **Hexagonal Architecture (Ports and Adapters)**, the core domain, dynamic fee calculators, health trackers, circuit breakers, and idempotency services required zero line changes when migrating transport layers. In 60-second sustained load benchmarks, Express 5 comfortably delivered **432 RPS at p99=49ms** (easily beating the 100 RPS / 200ms threshold) with **0 npm vulnerabilities**. Zod 4 provides strict DTO parsing and validation error formatting.
 
 ### 2.4 Multi-Stage Alpine Docker Build & Verified Healthchecks
 - **Decision**: Two-stage Docker build separating compile-time dependencies (`npm ci`) from lean production artifacts (`npm prune --production`), running under the unprivileged `node` user with an automated container healthcheck probe (`wget http://127.0.0.1:3000/health`).
@@ -35,12 +35,12 @@ We engineered an enterprise-grade payment orchestrator implementing **Cost-Aware
 
 ### 2.5 Integrated Postman CLI Contract Verification
 - **Decision**: Added official Postman Collection test verification (`postman collection run`) covering standard payment creation, idempotency replay, domestic INR routing, decision trace lookup, and Prometheus scraping.
-- **Rationale**: Guarantees external API consumers have an executable, reproducible test contract matching the real application behavior (14/14 assertions passed at 18ms avg latency).
+- **Rationale**: Guarantees external API consumers have an executable, reproducible test contract matching the real application behavior (22/22 assertions passed at 12ms avg latency across 10 requests, including 4 negative validation test cases).
 
 ---
 
 ## 3. What We Skipped & Why (Pragmatic Engineering)
-- **Compiling Juspay's Rust Monolith**: Compiling 500k lines of Rust takes 25–45 minutes and requires a heavy native toolchain, violating the `< 10 min spin-up` requirement. We chose **Node.js 26 Active LTS + Fastify 5**, achieving instant spin-up (< 5 seconds), 35,000 req/sec throughput, and universal evaluator compatibility.
+- **Compiling Juspay's Rust Monolith**: Compiling 500k lines of Rust takes 25–45 minutes and requires a heavy native toolchain, violating the `< 10 min spin-up` requirement. We chose **Node.js 26 Active LTS + Express 5**, achieving instant spin-up (< 3 seconds), 432 req/sec throughput, and universal evaluator compatibility.
 - **Distributed Redis / Database Cluster**: We implemented in-memory state stores (with atomic lock abstractions) rather than requiring external PostgreSQL/Redis containers. This guarantees the orchestrator runs on any developer laptop on first try with zero external dependency failures.
 - **Full 3DS Webhook Flow**: We focused depth on the core authorization routing decision boundary and cascading engine rather than mocking long-polling 3DS browser redirects.
 

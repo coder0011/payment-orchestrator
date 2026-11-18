@@ -1,10 +1,15 @@
-import type { FastifyPluginAsync } from 'fastify';
+import { Router } from 'express';
 import { getPrometheusMetrics, metricsContentType } from '../observability/metrics.js';
 
-export const metricsRoute: FastifyPluginAsync = async (fastify) => {
-  // GET /metrics (BONUS REQUIREMENT)
-  fastify.get('/metrics', async (_request, reply) => {
+export const metricsRouter: Router = Router();
+
+// GET /metrics (BONUS REQUIREMENT)
+metricsRouter.get('/metrics', async (_req, res, next) => {
+  try {
     const metrics = await getPrometheusMetrics();
-    return reply.header('Content-Type', metricsContentType).status(200).send(metrics);
-  });
-};
+    res.setHeader('Content-Type', metricsContentType);
+    res.status(200).send(metrics);
+  } catch (err) {
+    next(err);
+  }
+});

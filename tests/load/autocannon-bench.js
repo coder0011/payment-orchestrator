@@ -8,18 +8,19 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function runBenchmark() {
-  console.log('🚀 Starting Techdome Payment Orchestrator in benchmarking mode...');
+  console.log('🚀 Starting Payment Orchestrator (Express 5) in benchmarking mode...');
 
-  // Set test mode environment
   process.env['NODE_ENV'] = 'test';
   process.env['PORT'] = '3099';
   process.env['LOG_LEVEL'] = 'error';
   process.env['SILENT_LOGS'] = 'true';
   process.env['RATE_LIMIT_MAX'] = '1000000';
 
-  const app = await buildApp();
-  const address = await app.listen({ port: 3099, host: '127.0.0.1' });
-  console.log(`📡 Server listening on ${address}`);
+  const app = buildApp();
+  const server = app.listen(3099, '127.0.0.1');
+
+  await new Promise((resolve) => server.once('listening', resolve));
+  console.log(`📡 Server listening on http://127.0.0.1:3099`);
 
   const durationSec = parseInt(process.env['BENCH_DURATION'] ?? '60', 10);
   console.log(`⏱️ Running sustained load test: targeting 100+ RPS for ${durationSec}s against /v1/payments...`);
@@ -47,18 +48,18 @@ async function runBenchmark() {
         'content-type': 'application/json',
       },
       body: payload,
-      connections: 20, // 20 concurrent connections
+      connections: 20,
       pipelining: 1,
       duration: durationSec,
     },
     async (err, result) => {
       if (err) {
         console.error('❌ Benchmark error:', err);
-        await app.close();
+        server.close();
         process.exit(1);
       }
 
-      console.log('\n📊 === BENCHMARK RESULTS ===');
+      console.log('\n📊 === BENCHMARK RESULTS (EXPRESS 5) ===');
       console.log(`Total Requests Sent : ${result.requests.total}`);
       console.log(`Average RPS (Req/s) : ${result.requests.average.toFixed(2)}`);
       console.log(`p50 Latency (ms)    : ${result.latency.p50}`);
@@ -69,6 +70,7 @@ async function runBenchmark() {
 
       const resultsArtifact = {
         timestamp: new Date().toISOString(),
+        framework: 'express@5.3.0',
         durationSeconds: durationSec,
         connections: 20,
         requests: {
@@ -96,7 +98,7 @@ async function runBenchmark() {
       fs.writeFileSync(outPath, JSON.stringify(resultsArtifact, null, 2), 'utf-8');
       console.log(`💾 Results artifact written to: ${outPath}`);
 
-      await app.close();
+      server.close();
 
       if (result.latency.p99 >= 200) {
         console.error(`❌ FAILED: p99 latency (${result.latency.p99}ms) exceeded 200ms threshold!`);

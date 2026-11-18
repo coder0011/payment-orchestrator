@@ -24,7 +24,7 @@ demo:
 	@if [ -f "./scripts/demo.sh" ]; then bash ./scripts/demo.sh; else powershell -ExecutionPolicy Bypass -File ./scripts/demo.ps1; fi
 
 docker-build:
-	docker build -t techdome-payment-orchestrator:latest .
+	docker build -t payment-orchestrator:latest .
 
 docker-run:
 	docker-compose up --build -d

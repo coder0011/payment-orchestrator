@@ -1,9 +1,12 @@
+name: payment-orchestrator
+
 services:
   orchestrator:
+    image: payment-orchestrator:latest
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: techdome-payment-orchestrator
+    container_name: payment-orchestrator
     ports:
       - "3000:3000"
     environment:

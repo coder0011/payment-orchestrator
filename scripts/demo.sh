@@ -2,7 +2,7 @@
 set -e
 
 echo "================================================================"
-echo "  TECHDOME PAYMENT ORCHESTRATOR - INTERACTIVE DEMO (HYPERSWITCH) "
+echo "  PAYMENTS ORCHESTRATOR - INTERACTIVE DEMO (HYPERSWITCH) "
 echo "================================================================"
 echo ""
 
@@ -40,7 +40,7 @@ PAYMENT_RESP=$(curl -s -X POST http://127.0.0.1:3000/v1/payments \
       "holderName": "Jane Doe"
     },
     "billingCountry": "US",
-    "merchantId": "merch_techdome_01"
+    "merchantId": "merch_default_01"
   }')
 
 echo "  Response: $PAYMENT_RESP"

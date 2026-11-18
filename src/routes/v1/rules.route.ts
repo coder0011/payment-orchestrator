@@ -1,4 +1,4 @@
-import type { FastifyPluginAsync } from 'fastify';
+import { Router } from 'express';
 import { z } from 'zod';
 import { ValidationError } from '../../domain/errors.js';
 import { dynamicRoutingRuleSchema, rulesEngine } from '../../routing/rules-engine.js';
@@ -7,36 +7,48 @@ export const upsertRulesBodySchema = z.object({
   rules: z.array(dynamicRoutingRuleSchema),
 });
 
-export const rulesRoute: FastifyPluginAsync = async (fastify) => {
-  // POST /v1/routing/rules
-  fastify.post('/routing/rules', async (request, reply) => {
-    const parseResult = upsertRulesBodySchema.safeParse(request.body);
+export const rulesRouter: Router = Router();
+
+// POST /routing/rules
+rulesRouter.post('/routing/rules', async (req, res, next) => {
+  try {
+    const parseResult = upsertRulesBodySchema.safeParse(req.body);
     if (!parseResult.success) {
       throw new ValidationError('Invalid routing rules configuration payload', parseResult.error.format());
     }
 
     rulesEngine.setRules(parseResult.data.rules);
-    return reply.status(200).send({
+    res.status(200).json({
       message: 'Dynamic routing rules successfully updated',
       activeRuleCount: rulesEngine.getRules().length,
       rules: rulesEngine.getRules(),
     });
-  });
+  } catch (err) {
+    next(err);
+  }
+});
 
-  // GET /v1/routing/rules
-  fastify.get('/routing/rules', async (_request, reply) => {
-    return reply.status(200).send({
+// GET /routing/rules
+rulesRouter.get('/routing/rules', async (_req, res, next) => {
+  try {
+    res.status(200).json({
       activeRuleCount: rulesEngine.getRules().length,
       rules: rulesEngine.getRules(),
     });
-  });
+  } catch (err) {
+    next(err);
+  }
+});
 
-  // DELETE /v1/routing/rules
-  fastify.delete('/routing/rules', async (_request, reply) => {
+// DELETE /routing/rules
+rulesRouter.delete('/routing/rules', async (_req, res, next) => {
+  try {
     rulesEngine.clearRules();
-    return reply.status(200).send({
+    res.status(200).json({
       message: 'All dynamic routing rules cleared. Default cost-aware routing restored.',
       activeRuleCount: 0,
     });
-  });
-};
+  } catch (err) {
+    next(err);
+  }
+});

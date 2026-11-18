@@ -1,17 +1,18 @@
 {
-  "timestamp": "2026-11-18T16:46:53.269Z",
+  "timestamp": "2026-11-18T18:54:45.566Z",
+  "framework": "express@5.3.0",
   "durationSeconds": 60,
   "connections": 20,
   "requests": {
-    "total": 25920,
-    "averageRps": 432,
+    "total": 25940,
+    "averageRps": 432.34,
     "p50Ms": 46,
     "p90Ms": 47,
-    "p99Ms": 48,
-    "maxMs": 96
+    "p99Ms": 49,
+    "maxMs": 95
   },
   "responses": {
-    "success2xx": 25920,
+    "success2xx": 25940,
     "errors": 0
   },
   "scorecardEvaluation": {
