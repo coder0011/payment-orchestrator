@@ -1,0 +1,24 @@
+{
+  "timestamp": "2026-11-18T16:46:53.269Z",
+  "durationSeconds": 60,
+  "connections": 20,
+  "requests": {
+    "total": 25920,
+    "averageRps": 432,
+    "p50Ms": 46,
+    "p90Ms": 47,
+    "p99Ms": 48,
+    "maxMs": 96
+  },
+  "responses": {
+    "success2xx": 25920,
+    "errors": 0
+  },
+  "scorecardEvaluation": {
+    "requirementRps": ">= 100 RPS for 60s",
+    "requirementP99": "< 200ms",
+    "rpsAchieved": true,
+    "p99Achieved": true,
+    "bonusClaimed": "+5 Points"
+  }
+}

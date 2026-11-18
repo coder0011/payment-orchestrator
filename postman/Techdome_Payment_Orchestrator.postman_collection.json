@@ -1,0 +1,146 @@
+{
+  "info": {
+    "name": "Techdome Payment Orchestrator API",
+    "_postman_id": "c1f7a8b9-4d2e-4f1a-9a8b-123456789abc",
+    "description": "Enterprise Payments Orchestrator with Cost-Aware Dynamic Routing, Health Floors & Cascading Fallbacks (Hyperswitch Architecture)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:3000",
+      "type": "string"
+    },
+    {
+      "key": "lastPaymentId",
+      "value": "pay_example",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Health & Readiness",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        },
+        "description": "Service health probe and version status"
+      }
+    },
+    {
+      "name": "2. Process Payment - Cost-Aware Routing (USD 100)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
+              "pm.test('Selected connector is adyen (cheapest healthy)', function () { pm.expect(jsonData.connector).to.eql('adyen'); });",
+              "if (jsonData.paymentId) { pm.collectionVariables.set('lastPaymentId', jsonData.paymentId); }"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Idempotency-Key", "value": "demo-idem-{{$guid}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"amount\": 100,\n  \"currency\": \"USD\",\n  \"paymentMethod\": \"card\",\n  \"card\": {\n    \"number\": \"4242424242424242\",\n    \"expMonth\": 12,\n    \"expYear\": 2028,\n    \"cvv\": \"123\",\n    \"holderName\": \"Jane Doe\"\n  },\n  \"billingCountry\": \"US\",\n  \"merchantId\": \"merch_techdome_01\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/v1/payments",
+          "host": ["{{baseUrl}}"],
+          "path": ["v1", "payments"]
+        },
+        "description": "Processes payment evaluating fees across Stripe, Adyen, and Razorpay. Selects Adyen (cheapest healthy)."
+      }
+    },
+    {
+      "name": "3. Process Payment - Idempotency Replay",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Replay status is 200 OK', function () { pm.response.to.have.status(200); });",
+              "pm.test('Header Idempotent-Replayed is true', function () { pm.expect(pm.response.headers.get('Idempotent-Replayed')).to.eql('true'); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Idempotency-Key", "value": "fixed-idempotency-key-01" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"amount\": 250,\n  \"currency\": \"USD\",\n  \"paymentMethod\": \"card\",\n  \"card\": {\n    \"number\": \"4242424242424242\",\n    \"expMonth\": 10,\n    \"expYear\": 2029,\n    \"cvv\": \"456\",\n    \"holderName\": \"Bob Smith\"\n  },\n  \"billingCountry\": \"US\",\n  \"merchantId\": \"merch_techdome_01\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/v1/payments",
+          "host": ["{{baseUrl}}"],
+          "path": ["v1", "payments"]
+        },
+        "description": "Sending duplicate payment with fixed key replays identical cached response without recharging."
+      }
+    },
+    {
+      "name": "4. Process Payment - Domestic RuPay / INR",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"amount\": 2500,\n  \"currency\": \"INR\",\n  \"paymentMethod\": \"card\",\n  \"card\": {\n    \"number\": \"6070801234567890\",\n    \"expMonth\": 8,\n    \"expYear\": 2027,\n    \"cvv\": \"321\",\n    \"holderName\": \"Rahul Verma\"\n  },\n  \"billingCountry\": \"IN\",\n  \"merchantId\": \"merch_in_01\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/v1/payments",
+          "host": ["{{baseUrl}}"],
+          "path": ["v1", "payments"]
+        },
+        "description": "Routes INR transaction to domestic acquirer (Razorpay capped fee)."
+      }
+    },
+    {
+      "name": "5. Fetch Decision Trace (BONUS +5)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/v1/payments/{{lastPaymentId}}/routing-trace",
+          "host": ["{{baseUrl}}"],
+          "path": ["v1", "payments", "{{lastPaymentId}}", "routing-trace"]
+        },
+        "description": "Retrieves the complete audit trail and decision matrix for the payment."
+      }
+    },
+    {
+      "name": "6. Prometheus Telemetry (BONUS +5)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/metrics",
+          "host": ["{{baseUrl}}"],
+          "path": ["metrics"]
+        },
+        "description": "Exports standard Prometheus metrics for Grafana/monitoring systems."
+      }
+    }
+  ]
+}
