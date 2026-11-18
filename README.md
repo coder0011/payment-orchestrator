@@ -5,7 +5,6 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Vulnerabilities](https://img.shields.io/badge/vulnerabilities-0%20found-brightgreen.svg)](https://www.npmjs.com/)
 
-> **Senior/Staff Engineer Take-Home Assignment**  
 > Architected after **Juspay Hyperswitch** (Hexagonal Architecture, Unified Connector Interface, Multi-Objective Smart Routing, Cascading Fallbacks, and Inbound Payment APIs) with **0 external dependency friction** and **sub-5-second local startup**.
 
 ---
