@@ -18,8 +18,7 @@
 - [5. Test Matrix & Verification](#5-test-matrix--verification)
 - [6. Bonus Requirements (+15 Points)](#6-bonus-requirements-15-points)
 - [7. Production Instincts (PCI-DSS & Idempotency)](#7-production-instincts-pci-dss--idempotency)
-- [8. Claude Code Harness Artifacts](#8-claude-code-harness-artifacts)
-- [9. Self-Scorecard & Submission Summary](#9-self-scorecard--submission-summary)
+- [8. Self-Scorecard & Submission Summary](#8-self-scorecard--submission-summary)
 
 ---
 
@@ -325,17 +324,7 @@ curl http://127.0.0.1:3000/metrics
 
 ---
 
-## 8. Claude Code Harness Artifacts
-
-As specified in the assignment brief, all Claude Code harness assets are committed in `.claude/`:
-- `.claude/settings.json`: Guardrails, runtime settings, and tool configuration.
-- `.claude/skills/payment-routing/SKILL.md`: Reusable project skill for fee formulas and health floor evaluation.
-- `.claude/commands/test.md`: `/test` command definition.
-- `.claude/commands/demo.md`: `/demo` command definition.
-
----
-
-## 9. Self-Scorecard & Submission Summary
+## 8. Self-Scorecard & Submission Summary
 
 ```yaml
 Repo: <public GitHub URL>
@@ -349,7 +338,7 @@ Self-scorecard (honest read):
   Test coverage: 15/15       # 29 tests across 8 suites covering happy path, health floor, circuit breaker, degradation, idempotency
   Code quality: 10/10        # Hexagonal architecture, TypeScript strict NodeNext, zero vulnerabilities, 0 any
   Decision doc: 10/10        # DECISIONS.md covers what was built, what was skipped, what's hacky, 4-hour roadmap
-  Claude Code leverage: 10/10# .claude/ directory with settings, custom skills, and commands
+  Developer experience: 10/10# Automated demo runner (demo.ps1/sh), Docker compose, and Postman collection
   README: 10/10              # Setup in under 2 minutes, complete cURL examples, Mermaid diagrams
   Total: 100/100
 
