@@ -51,7 +51,7 @@
         "method": "POST",
         "header": [
           { "key": "Content-Type", "value": "application/json" },
-          { "key": "Idempotency-Key", "value": "demo-idem-{{$guid}}" }
+          { "key": "Idempotency-Key", "value": "fixed-idempotency-key-01" }
         ],
         "body": {
           "mode": "raw",
@@ -87,7 +87,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"amount\": 250,\n  \"currency\": \"USD\",\n  \"paymentMethod\": \"card\",\n  \"card\": {\n    \"number\": \"4242424242424242\",\n    \"expMonth\": 10,\n    \"expYear\": 2029,\n    \"cvv\": \"456\",\n    \"holderName\": \"Bob Smith\"\n  },\n  \"billingCountry\": \"US\",\n  \"merchantId\": \"merch_techdome_01\"\n}"
+          "raw": "{\n  \"amount\": 100,\n  \"currency\": \"USD\",\n  \"paymentMethod\": \"card\",\n  \"card\": {\n    \"number\": \"4242424242424242\",\n    \"expMonth\": 12,\n    \"expYear\": 2028,\n    \"cvv\": \"123\",\n    \"holderName\": \"Jane Doe\"\n  },\n  \"billingCountry\": \"US\",\n  \"merchantId\": \"merch_techdome_01\"\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/v1/payments",
