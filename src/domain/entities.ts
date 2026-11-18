@@ -73,7 +73,7 @@ export interface RoutingSummary {
   calculatedCost: number;
   currency: Currency;
   reason: string;
-  strategy: 'least_cost' | 'graceful_degradation' | 'fallback_cascade';
+  strategy: 'least_cost' | 'graceful_degradation' | 'fallback_cascade' | 'rule_priority';
 }
 
 export interface PaymentResult {

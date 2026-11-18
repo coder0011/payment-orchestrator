@@ -20,6 +20,7 @@ export const tracesRoute: FastifyPluginAsync = async (fastify) => {
       fallbackCandidates: trace.decision.fallbackCandidates,
       strategy: trace.decision.strategy,
       reason: trace.decision.reason,
+      matchedRule: trace.decision.matchedRule,
       executionTrace: trace.executionTrace,
     });
   });

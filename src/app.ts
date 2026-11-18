@@ -6,6 +6,7 @@ import { DomainError } from './domain/errors.js';
 import { logger } from './observability/logger.js';
 import { metricsRoute } from './routes/metrics.route.js';
 import { paymentsRoute } from './routes/v1/payments.route.js';
+import { rulesRoute } from './routes/v1/rules.route.js';
 import { tracesRoute } from './routes/v1/traces.route.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
@@ -111,10 +112,12 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(metricsRoute); // Root /metrics
   await app.register(paymentsRoute, { prefix: '/v1' });
   await app.register(tracesRoute, { prefix: '/v1' });
+  await app.register(rulesRoute, { prefix: '/v1' });
 
   // Also register top-level aliases for compatibility with Hyperswitch conventions (/payments)
   await app.register(paymentsRoute);
   await app.register(tracesRoute);
+  await app.register(rulesRoute);
 
   return app;
 }

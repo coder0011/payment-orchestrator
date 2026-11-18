@@ -33,8 +33,9 @@ export interface RoutingDecision {
   evaluationMatrix: EvaluatedCandidate[];
   selectedConnector: ConnectorId;
   fallbackCandidates: ConnectorId[];
-  strategy: 'least_cost' | 'graceful_degradation';
+  strategy: 'least_cost' | 'graceful_degradation' | 'rule_priority';
   reason: string;
+  matchedRule?: string | undefined;
 }
 
 export interface CompleteRoutingTrace {

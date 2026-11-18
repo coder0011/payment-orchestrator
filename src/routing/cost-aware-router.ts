@@ -9,15 +9,18 @@ import type { EvaluatedCandidate, RoutingDecision } from '../domain/routing-trac
 import { routingDecisionsTotal, routingFloorRejectionsTotal } from '../observability/metrics.js';
 import { PiiService } from '../security/pii.js';
 import { healthTracker, type HealthTracker } from './health-tracker.js';
+import { rulesEngine, type RulesEngine } from './rules-engine.js';
 
 export interface RoutingEngineOptions {
   healthFloorThreshold?: number; // Minimum success rate floor (default: 0.85)
   merchantCountry?: string; // Default merchant acquiring country (default: 'US')
+  rulesEngine?: RulesEngine;
 }
 
 export class CostAwareRouter {
   private readonly healthFloorThreshold: number;
   private readonly defaultMerchantCountry: string;
+  private readonly rules: RulesEngine;
 
   constructor(
     private readonly tracker: HealthTracker = healthTracker,
@@ -25,6 +28,7 @@ export class CostAwareRouter {
   ) {
     this.healthFloorThreshold = options.healthFloorThreshold ?? 0.85;
     this.defaultMerchantCountry = options.merchantCountry ?? 'US';
+    this.rules = options.rulesEngine ?? rulesEngine;
   }
 
   /**
@@ -46,15 +50,39 @@ export class CostAwareRouter {
       merchantCountry,
     };
 
+    // Check for Euclid-style dynamic routing rules
+    const matchedRule = this.rules.findMatchingRule(tuple);
+    const effectiveFloor = matchedRule?.actions.minHealthFloor ?? this.healthFloorThreshold;
+
     const evaluationMatrix: EvaluatedCandidate[] = [];
     const eligiblePassingCandidates: Array<{
       connector: IPaymentConnector;
       cost: number;
       rate: number;
+      priorityIndex: number;
     }> = [];
 
     // Step 1: Evaluate each connector
     for (const connector of connectors) {
+      // Rule preferred connectors check
+      if (
+        matchedRule &&
+        !matchedRule.actions.preferredConnectors.includes(connector.id)
+      ) {
+        const quote = connector.quoteFee(tuple);
+        evaluationMatrix.push({
+          connectorId: connector.id,
+          feeBreakdown: quote.feeBreakdown,
+          calculatedCost: quote.feeBreakdown.total,
+          successRate: this.tracker.getSuccessRate(connector.id),
+          passedHealthFloor: true,
+          selected: false,
+          status: 'rejected_higher_cost',
+          rejectionReason: `Connector excluded by dynamic rule '${matchedRule.name}'`,
+        });
+        continue;
+      }
+
       // Currency check
       if (!connector.supportsCurrency(intent.currency)) {
         const quote = connector.quoteFee(tuple);
@@ -89,7 +117,7 @@ export class CostAwareRouter {
 
       const quote = connector.quoteFee(tuple);
       const successRate = this.tracker.getSuccessRate(connector.id);
-      const passedFloor = successRate >= this.healthFloorThreshold;
+      const passedFloor = successRate >= effectiveFloor;
 
       if (!passedFloor) {
         routingFloorRejectionsTotal.inc({
@@ -106,16 +134,21 @@ export class CostAwareRouter {
           selected: false,
           status: 'rejected_below_health_floor',
           rejectionReason: `Success rate ${(successRate * 100).toFixed(1)}% is below the ${(
-            this.healthFloorThreshold * 100
+            effectiveFloor * 100
           ).toFixed(0)}% health floor`,
         });
         continue;
       }
 
+      const priorityIndex = matchedRule
+        ? matchedRule.actions.preferredConnectors.indexOf(connector.id)
+        : 0;
+
       eligiblePassingCandidates.push({
         connector,
         cost: quote.feeBreakdown.total,
         rate: successRate,
+        priorityIndex: priorityIndex === -1 ? 999 : priorityIndex,
       });
 
       evaluationMatrix.push({
@@ -132,27 +165,42 @@ export class CostAwareRouter {
     // Step 2: Determine Selected Connector & Strategy
     let selectedConnectorId: ConnectorId;
     let fallbackCandidates: ConnectorId[] = [];
-    let strategy: 'least_cost' | 'graceful_degradation';
+    let strategy: 'least_cost' | 'graceful_degradation' | 'rule_priority';
     let reason: string;
 
     if (eligiblePassingCandidates.length > 0) {
-      // Normal Mode: Sort passing candidates by lowest calculated cost
-      eligiblePassingCandidates.sort((a, b) => a.cost - b.cost);
+      if (matchedRule && matchedRule.actions.strategy === 'priority') {
+        // Sort strictly by rule priority order
+        eligiblePassingCandidates.sort((a, b) => a.priorityIndex - b.priorityIndex);
+        strategy = 'rule_priority';
+        const primary = eligiblePassingCandidates[0]!;
+        selectedConnectorId = primary.connector.id;
+        fallbackCandidates = eligiblePassingCandidates.slice(1).map((c) => c.connector.id);
+        reason = `Selected primary connector (${selectedConnectorId}) according to dynamic rule '${matchedRule.name}' priority`;
+      } else {
+        // Normal Mode or least_cost_within_selection: Sort passing candidates by lowest calculated cost
+        eligiblePassingCandidates.sort((a, b) => a.cost - b.cost);
+        strategy = 'least_cost';
+        const primary = eligiblePassingCandidates[0]!;
+        selectedConnectorId = primary.connector.id;
+        fallbackCandidates = eligiblePassingCandidates.slice(1).map((c) => c.connector.id);
+        reason = matchedRule
+          ? `Matched rule '${matchedRule.name}'. Selected cheapest preferred connector (${selectedConnectorId}) satisfying the ${(
+              effectiveFloor * 100
+            ).toFixed(0)}% health floor`
+          : `Selected cheapest connector (${selectedConnectorId}) satisfying the ${(
+              effectiveFloor * 100
+            ).toFixed(0)}% health floor`;
+      }
 
       const primary = eligiblePassingCandidates[0]!;
-      selectedConnectorId = primary.connector.id;
-      fallbackCandidates = eligiblePassingCandidates.slice(1).map((c) => c.connector.id);
-      strategy = 'least_cost';
-      reason = `Selected cheapest connector (${selectedConnectorId}) satisfying the ${(
-        this.healthFloorThreshold * 100
-      ).toFixed(0)}% health floor`;
 
       // Update evaluation matrix statuses
       for (const item of evaluationMatrix) {
         if (item.connectorId === selectedConnectorId) {
           item.selected = true;
           item.status = 'chosen_primary';
-        } else if (item.passedHealthFloor) {
+        } else if (item.passedHealthFloor && item.status !== 'rejected_higher_cost') {
           item.selected = false;
           item.status = 'rejected_higher_cost';
           item.rejectionReason = `Cost (${item.calculatedCost}) is higher than chosen primary (${primary.cost})`;
@@ -182,7 +230,7 @@ export class CostAwareRouter {
       strategy = 'graceful_degradation';
       const bestRate = (this.tracker.getSuccessRate(primary.id) * 100).toFixed(1);
       reason = `All connectors fell below the ${(
-        this.healthFloorThreshold * 100
+        effectiveFloor * 100
       ).toFixed(0)}% health floor. Gracefully degraded to highest-availability connector (${selectedConnectorId} at ${bestRate}% SR).`;
 
       // Update matrix statuses
@@ -209,14 +257,16 @@ export class CostAwareRouter {
         billingCountry: intent.billingCountry,
         merchantCountry,
       },
-      healthFloorThreshold: this.healthFloorThreshold,
+      healthFloorThreshold: effectiveFloor,
       evaluationMatrix,
       selectedConnector: selectedConnectorId,
       fallbackCandidates,
       strategy,
       reason,
+      matchedRule: matchedRule ? matchedRule.name : undefined,
     };
   }
 }
 
 export const costAwareRouter = new CostAwareRouter();
+
